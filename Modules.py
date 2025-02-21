@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 class Lambda(nn.Module):
@@ -41,29 +42,21 @@ class print_(Lambda):
     def __init__(self):
         super().__init__(lambda x: print(x))
 
-class fork_n(nn.Module):
-    def __init__(self, N):
+class fork(nn.Module):
+    def __init__(self, N=2):
         super().__init__()
         self.N = N
 
     def forward(self, x):
         return [x for _ in range(self.N)]
 
-class fork(fork_n):
-    def __init__(self):
-        super().__init__(2)
-
-class parallel_n(nn.Module):
+class parallel(nn.Module):
     def __init__(self, *modules):
         super().__init__()
         self.modules = nn.ModuleList(modules)
 
     def forward(self, x):
         return [module(x) for module in self.modules]
-
-class parallel2(parallel_n):
-    def __init__(self, left, right):
-        super().__init__(left, right)
 
 
 def seq(*blocks):
@@ -78,7 +71,7 @@ def ruby_pipeline_element(block):
     if isinstance(block, tuple):
         block = seq(*_ruby_unbox(block))
     elif isinstance(block, list):
-        block = parallel_n(*_ruby_unbox(block))
+        block = parallel(*_ruby_unbox(block))
     return block
 
 def ruby_pipeline(*blocks):
@@ -87,7 +80,7 @@ def ruby_pipeline(*blocks):
 def Id():
     return nn.Identity()
 
-class apply_n(nn.Module):
+class apply_at(nn.Module):
     def __init__(self, N, oper):
         super().__init__()
         self.N = N
@@ -98,13 +91,41 @@ class apply_n(nn.Module):
         x[self.N] = x_prime
         return x
 
-class fst(apply_n):
+class fst(apply_at):
     def __init__(self, oper):
         super().__init__(0, oper)
 
-class snd(apply_n):
+class snd(apply_at):
     def __init__(self, oper):
         super().__init__(1, oper)
+
+class lst(nn.Module):
+    def __init__(self, N=None):
+        super().__init__()
+        self.N = N
+
+    def forward(self, x):
+        if self.N is None:
+            return x[-1]
+        return x[-self.N:]
+
+class pick_at(nn.Module):
+    def __init__(self, N):
+        super().__init__()
+        self.N = N
+
+    def forward(self, x):
+        return x[self.N]
+
+class drop_at(nn.Module):
+    def __init__(self, N):
+        super().__init__()
+        self.N = N
+
+    def forward(self, x):
+        begin = x[:self.N]
+        tail = x[self.N + 1:]
+        return torch.cat((begin, tail), dim=0)
 
 class fork_inv(nn.Module):
     def __init__(self, N):
