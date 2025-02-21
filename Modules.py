@@ -8,15 +8,15 @@ class Lambda(nn.Module):
     def forward(self, x):
         return self.f(x)
 
-class Swap1(Lambda):
+class swap1(Lambda):
     def __init__(self):
         super().__init__(lambda x: x.swapaxes(1, 2))
 
-class Swap2(Lambda):
+class swap2(Lambda):
     def __init__(self):
         super().__init__(lambda x, y: (y, x))
 
-class AssertShape(nn.Module):
+class assert_shape(nn.Module):
     def __init__(self, shape):
         super().__init__()
         self.shape = shape
@@ -25,32 +25,35 @@ class AssertShape(nn.Module):
         assert x.shape == self.shape, f"Shape mismatch. Expected shape {self.shape}, got {x.shape}."
         return x
 
-class AssertShapeLen(Lambda):
+class assert_shape_len(Lambda):
     def __init__(self, shape_len):
         super().__init__(lambda x: x if len(x.shape) == shape_len else ValueError(f"Shape mismatch. Expected shape length {shape_len}, got {len(x.shape)}."))
 
-class Assert(Lambda):
+class assert_(Lambda):
     def __init__(self, f, error_message="Assertion failed"):
         super().__init__(lambda x: x if f(x) else ValueError(error_message))
 
-class PrintShape(Lambda):
+class print_shape(Lambda):
     def __init__(self):
         super().__init__(lambda x: print(x.shape))
 
-class Print(Lambda):
+class print_(Lambda):
     def __init__(self):
         super().__init__(lambda x: print(x))
 
-class Fork(nn.Module):
-    def __init__(self, left, right):
+class fork_n(nn.Module):
+    def __init__(self, N):
         super().__init__()
-        self.left = left
-        self.right = right
+        self.N = N
 
     def forward(self, x):
-        return self.left(x), self.right(x)
+        return [x for _ in range(self.N)]
 
-class ForkN(nn.Module):
+class fork(fork_n):
+    def __init__(self):
+        super().__init__(2)
+
+class parallel_n(nn.Module):
     def __init__(self, *modules):
         super().__init__()
         self.modules = nn.ModuleList(modules)
@@ -58,22 +61,69 @@ class ForkN(nn.Module):
     def forward(self, x):
         return [module(x) for module in self.modules]
 
-class Parallel2(nn.Module):
+class parallel2(parallel_n):
     def __init__(self, left, right):
-        super().__init__()
-        self.left = left
-        self.right = right
+        super().__init__(left, right)
 
-    def forward(self, x):
-        return self.left(x), self.right(x)
 
-class ParallelN(nn.Module):
-    def __init__(self, *modules):
-        super().__init__()
-        self.modules = nn.ModuleList(modules)
-
-    def forward(self, x):
-        return [module(x) for module in self.modules]
-
-def Seq(blocks):
+def seq(*blocks):
     return nn.Sequential(*blocks)
+
+def _ruby_unbox(block):
+    if len(block) == 1:
+        return block[0]
+    return [ruby_pipeline_element(b) for b in block]
+
+def ruby_pipeline_element(block):
+    if isinstance(block, tuple):
+        block = seq(*_ruby_unbox(block))
+    elif isinstance(block, list):
+        block = parallel_n(*_ruby_unbox(block))
+    return block
+
+def ruby_pipeline(*blocks):
+    return ruby_pipeline_element(blocks)
+
+def Id():
+    return nn.Identity()
+
+class apply_n(nn.Module):
+    def __init__(self, N, oper):
+        super().__init__()
+        self.N = N
+        self.oper = oper
+        
+    def forward(self, x):
+        x_prime = self.oper(x[self.N])
+        x[self.N] = x_prime
+        return x
+
+class fst(apply_n):
+    def __init__(self, oper):
+        super().__init__(0, oper)
+
+class snd(apply_n):
+    def __init__(self, oper):
+        super().__init__(1, oper)
+
+class fork_inv(nn.Module):
+    def __init__(self, N):
+        super().__init__()
+        self.N = N
+
+    def forward(self, x):
+        return x[::-1]
+
+def shape_transform_1d(from_shape, to_shape):
+    return nn.Linear(from_shape, to_shape)
+
+def activation(act):
+    match act:
+        case "relu":
+            return nn.ReLU()
+        case "sigmoid":
+            return nn.Sigmoid()
+        case "tanh":
+            return nn.Tanh()
+        case _:
+            raise ValueError(f"Invalid activation function: {act}")
