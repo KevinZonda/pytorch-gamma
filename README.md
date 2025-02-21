@@ -4,7 +4,7 @@
 
 Torch γ is a framework for building and training neural networks inspired by [Ruby](https://www.cs.ox.ac.uk/people/geraint.jones/ruby/).
 
-Torch Gamma is intends to use relational algebra to build and train neural networks.
+Torch Gamma intends to use relational algebra to build and train neural networks.
 
 ## About Ruby
 
