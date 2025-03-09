@@ -1,9 +1,29 @@
 import torch
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 def is_same_device(t, device):
-    return True
-    #return t.device == device
+    if isinstance(t, torch.Tensor):
+        return t.device == device
+    elif isinstance(t, np.ndarray):
+        return device == torch.device('cpu') or device == 'cpu' or device is None
+    elif isinstance(t, list):
+        return all(is_same_device(item, device) for item in t)
+    
+    raise ValueError(f"Invalid type: {type(t)}")
+
+def get_device(t):
+    if isinstance(t, torch.Tensor):
+        return t.device
+    elif isinstance(t, np.ndarray):
+        return torch.device('cpu')
+    elif isinstance(t, list):
+        return get_device(t[0])
+
+def to_tensor(x):
+    if isinstance(x, torch.Tensor):
+        return x
+    return torch.tensor(x)
 class Trainer:
     def __init__(self, model, optimizer, loss_fn, after_train=None, device=None):
         self.model = model
@@ -11,18 +31,20 @@ class Trainer:
         self.loss_fn = loss_fn
         self.after_train = after_train
         self.device = device
-        # if self.device is None: # if device is not specified, use the device of the model
-        #     self.device = model.device
+        if self.device is None: # if device is not specified, use the device of the model
+            self.device = get_device(self.model)
 
-    def train(self, train_data, val_data=None, split_val=False, epochs=10, batch_size=32):
+    def train(self, X, y, val_data=None, split_val=False, epochs=10, batch_size=32):
         if not is_same_device(self.model, self.device):
             self.model = self.model.to(self.device)
+        
+        X, y = to_tensor(X), to_tensor(y)
 
         has_val = True
         if split_val:
-            X_train, X_val, y_train, y_val = train_test_split(train_data[0], train_data[1], test_size=0.2, random_state=42)
+            X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
         else:
-            X_train, y_train = train_data
+            X_train, y_train = X, y
             if val_data is None:
                 has_val = False
             else:
