@@ -1,27 +1,25 @@
 import torch
 
-def to_tensor(x):
+def to_tensor(x, device=None, requires_grad=False):
     if isinstance(x, torch.Tensor):
+        if device is not None and x.device != device:
+            x = x.to(device)
         return x
-    return torch.tensor(x)
+    return torch.tensor(x, device=device, requires_grad=requires_grad)
 
-class Prob:
-    def __init__(self, val=None, shape=(1,), device=None):
-        self.val = torch.zeros(shape, device=device) if val is None else to_tensor(val)
+class Prob(torch.Tensor):
+    @staticmethod
+    def __new__(cls, val=None, shape=(1,), device=None, requires_grad=False):
+        if val is None:
+            val = torch.zeros(shape, device=device, requires_grad=requires_grad)
+        else:
+            val = to_tensor(val, device=device, requires_grad=requires_grad)
+        return torch.Tensor._make_subclass(cls, val, device_for_backend_keys=device, require_grad=requires_grad)
         
     def __lshift__(self, other):
-        self.val = other._sample(self.shape)
+        new_val = other._sample(self.shape)
+        self.copy_(new_val)
         return self
-    
-    def __repr__(self):
-        return f"Prob(val={self.val}, shape={self.shape})"
-    
-    @property
-    def shape(self):
-        return self.val.shape
-    
-    def to_tensor(self):
-        return self.val
     
     @staticmethod
     def from_tensor(t):
@@ -58,6 +56,6 @@ class Normal(Distribution):
     def __call__(self, shape):
         return self.sample(shape)
 
-# x = Prob()
-# p = Normal(0, 1)
-# print(x << p)
+x = Prob()
+p = Normal(0, 1)
+print(x << p)
