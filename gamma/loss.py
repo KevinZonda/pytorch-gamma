@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
+import inspect
 
 def _loss_fn(loss):
     if isinstance(loss, str):
         return _str_to_loss(loss)
     elif isinstance(loss, nn.Module):
         return loss
+    elif inspect.isclass(loss) and issubclass(loss, nn.Module): # user can send nn.ReLU instead of nn.ReLU()
+        return loss()
     else:
         raise ValueError(f"Unsupported loss function: {loss}")
 

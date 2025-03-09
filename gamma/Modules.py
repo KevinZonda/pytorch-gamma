@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from gamma.activations import _act
 
 class Lambda(nn.Module):
     def __init__(self, f):
@@ -139,15 +140,7 @@ def shape_transform_1d(from_shape, to_shape):
     return nn.Linear(from_shape, to_shape)
 
 def act(act):
-    match act:
-        case "relu":
-            return nn.ReLU()
-        case "sigmoid":
-            return nn.Sigmoid()
-        case "tanh":
-            return nn.Tanh()
-        case _:
-            raise ValueError(f"Invalid activation function: {act}")
+    return _act(act)
 
 def activation(act):
     return act(act)
