@@ -74,7 +74,7 @@ def ruby_pipeline_element(block):
         block = parallel(*_ruby_unbox(block))
     return block
 
-def ruby_pipeline(*blocks):
+def pipeline(*blocks):
     return ruby_pipeline_element(blocks)
 
 def Id():
@@ -138,7 +138,7 @@ class fork_inv(nn.Module):
 def shape_transform_1d(from_shape, to_shape):
     return nn.Linear(from_shape, to_shape)
 
-def activation(act):
+def act(act):
     match act:
         case "relu":
             return nn.ReLU()
@@ -148,3 +148,44 @@ def activation(act):
             return nn.Tanh()
         case _:
             raise ValueError(f"Invalid activation function: {act}")
+
+def activation(act):
+    return act(act)
+
+def repeat_block(block, n, same_block=True, block_fn=True, block_args=None, block_kwargs=None):
+    if block_fn:
+        if not same_block:
+            return nn.Sequential(*[block(*block_args, **block_kwargs) for _ in range(n)])
+        else:
+            block = block(*block_args, **block_kwargs)
+    return nn.Sequential(*[block for _ in range(n)])
+
+def relu():
+    return nn.ReLU()
+
+def sigmoid():
+    return nn.Sigmoid()
+
+def tanh():
+    return nn.Tanh()
+
+def softmax():
+    return nn.Softmax()
+
+def gelu():
+    return nn.GELU()
+
+def silu():
+    return nn.SiLU()
+
+def elu():
+    return nn.ELU()
+
+def selu():
+    return nn.SELU()
+
+def silu():
+    return nn.SiLU()
+
+def mish():
+    return nn.Mish()
