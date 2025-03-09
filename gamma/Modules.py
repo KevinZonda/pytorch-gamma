@@ -175,9 +175,6 @@ def softmax():
 def gelu():
     return nn.GELU()
 
-def silu():
-    return nn.SiLU()
-
 def elu():
     return nn.ELU()
 
