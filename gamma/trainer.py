@@ -1,6 +1,9 @@
 import torch
+from torch import nn
 from sklearn.model_selection import train_test_split
 import numpy as np
+from gamma.optim import _optimizer
+from gamma.loss import _loss_fn
 
 def is_same_device(t, device):
     if isinstance(t, torch.Tensor):
@@ -9,6 +12,9 @@ def is_same_device(t, device):
         return device == torch.device('cpu') or device == 'cpu' or device is None
     elif isinstance(t, list):
         return all(is_same_device(item, device) for item in t)
+    elif isinstance(t, nn.Module):
+        params = list(t.parameters())
+        return len(params) == 0 or params[0].device == device
     
     raise ValueError(f"Invalid type: {type(t)}")
 
@@ -19,16 +25,21 @@ def get_device(t):
         return torch.device('cpu')
     elif isinstance(t, list):
         return get_device(t[0])
+    elif isinstance(t, nn.Module):
+        params = list(t.parameters())
+        return params[0].device if len(params) > 0 else torch.device('cpu')
+    
+    return torch.device('cpu')
 
 def to_tensor(x):
     if isinstance(x, torch.Tensor):
         return x
     return torch.tensor(x)
 class Trainer:
-    def __init__(self, model, optimizer, loss_fn, after_train=None, device=None):
+    def __init__(self, model, optimizer, loss_fn, after_train=None, lr=0.01, device=None):
         self.model = model
-        self.optimizer = optimizer
-        self.loss_fn = loss_fn
+        self.optimizer = _optimizer(model, optimizer, lr)
+        self.loss_fn   = _loss_fn(loss_fn)
         self.after_train = after_train
         self.device = device
         if self.device is None: # if device is not specified, use the device of the model
